@@ -80,7 +80,7 @@ void PLCWidget::openCommucation()
 
 void PLCWidget::getCpuType()
 {
-    BSTR cpuName;
+    BSTR cpuName = NULL;
     long cpuCode;
     long lRet;
     long hr;
