@@ -6,6 +6,26 @@
 #include <QKeyEvent>
 #include <QPaintEvent>
 #include <QRect>
+#include <QPainter>
+
+enum CaptureState { NotCapture = 0,
+                    BeginCaptureImage,
+                    FinishCaptureImage,
+                    BeginMoveCapturedImage,
+                    FinishMoveCapturedImage,
+                    BeginMoveStretchedRect,
+                    FinishMoveStretchedRect };
+
+enum StretchRectState { NotSelect = 0,
+                        TopLeft,
+                        TopRight,
+                        BottomLeft,
+                        BottomRight,
+                        LeftCenter,
+                        TopCenter,
+                        RightCenter,
+                        BottomCenter };
+
 
 class GalleryWidget : public QWidget
 {
@@ -20,13 +40,39 @@ private:
     void mouseMoveEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
     void keyPressEvent(QKeyEvent *event);
-    QRect getRect();
+    QRect widgetToImage(QRect rect);
+    QRect getRect(QPoint beginPoint, QPoint endPoint);
+    QRect getMoveRect();
+    QRect getStretchRect();
+    bool isPressPointInSelectRect(QPoint Point);
+    QRect getSelectRect();
+    QPoint getMovePoint();
+    StretchRectState getStretchRectState(QPoint point);
+    void setStretchCursorStyle(StretchRectState state);
+    void drawStretchRect();
 
 private:
-    bool     m_isMousePress;
-    QPoint   m_beginPos;
-    QPoint   m_endPos;
+    int      m_screenWidth;
+    int      m_screenHeight;
+    QPoint   m_beginPoint;
+    QPoint   m_endPoint;
+    QPoint   m_beginMovePoint;
+    QPoint   m_endMovePoint;
     QPixmap  m_savedImage;
+    QRect    m_currentSelectRect;
+    QPainter m_painter;
+
+    QRect m_topLeftRect;
+    QRect m_topRightRect;
+    QRect m_bottomLeftRect;
+    QRect m_bottomRightRect;
+    QRect m_leftCenterRect;
+    QRect m_topCenterRect;
+    QRect m_rightCenterRect;
+    QRect m_bottomCenterRect;
+
+    CaptureState     m_currentCaptureState;
+    StretchRectState m_stretchRectState;
 };
 
 #endif // GALLERY_WIDGET_H
