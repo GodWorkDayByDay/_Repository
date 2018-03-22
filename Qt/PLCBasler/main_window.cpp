@@ -96,6 +96,8 @@ void MainWindow::openCamera()
 
                     m_isSaved = false;
 
+                    QPixmap pixmap(QCoreApplication::applicationDirPath()+ "/save.png");
+                    m_galleryWidget->setImage(pixmap);
                     m_galleryWidget->repaint();
                     m_galleryWidget->show();
                 }

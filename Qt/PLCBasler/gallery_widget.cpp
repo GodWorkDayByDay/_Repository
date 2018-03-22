@@ -20,6 +20,11 @@ GalleryWidget::~GalleryWidget()
 {
 }
 
+void GalleryWidget::setImage(QPixmap &pixmap)
+{
+    m_savedImage = pixmap;
+}
+
 void GalleryWidget::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);

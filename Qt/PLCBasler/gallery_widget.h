@@ -12,6 +12,7 @@ class GalleryWidget : public QWidget
 public:
     explicit GalleryWidget(QWidget *parent = 0);
     ~GalleryWidget();
+    void setImage(QPixmap &pixmap);
 
 private:
     void paintEvent(QPaintEvent *event);
