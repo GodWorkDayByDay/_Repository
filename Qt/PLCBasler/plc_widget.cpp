@@ -7,6 +7,8 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QDebug>
+#include <Windows.h>
+#include "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/atlmfc/include/atlstr.h"
 
 PLCWidget::PLCWidget(QFrame *parent) : QFrame(parent)
 {
@@ -102,7 +104,7 @@ void PLCWidget::getCpuType()
 
     m_returnCodeLineEdit->setText(QString::number(hr, 16));
 
-    delete cpuName;
+    //delete cpuName;
 }
 
 void PLCWidget::read()
@@ -110,37 +112,45 @@ void PLCWidget::read()
     long hr;
     long lRet;
     long lValue;
-    //BSTR device;
-    wchar_t device[100];
+
+    QByteArray ba = m_deviceNameLineEdit->text().toLatin1();
+    int len = ba.size();
+    char *device = new char[len + 1];
+    strcpy(device, ba.data());
+    device[len] = '\0';
+    CString s(device);
 
     m_outputLineEdit1->clear();
     m_outputLineEdit2->clear();
 
-    m_deviceNameLineEdit->text().toWCharArray(device);
+    hr = m_IUtlType->GetDevice(s.AllocSysString(), &lValue, &lRet);
 
-    hr = m_IUtlType->GetDevice(device, &lValue, &lRet);
     if (SUCCEEDED(hr))
     {
         if(lRet == 0x00)
             m_outputLineEdit1->setText(QString::number(lValue, 16));
     }
 
-    m_returnCodeLineEdit->setText(QString::number(hr, 16));
+    m_returnCodeLineEdit->setText(QString::number(lRet, 16));
 }
 
 void PLCWidget::write()
 {
     long hr;
     long lRet;
-    wchar_t device[100];
     long lValue = m_deviceValueLineEdit->text().toLong();
+
+    QByteArray ba = m_deviceNameLineEdit->text().toLatin1();
+    int len = ba.size();
+    char *device = new char[len + 1];
+    strcpy(device, ba.data());
+    device[len] = '\0';
+    CString s(device);
 
     m_outputLineEdit1->clear();
     m_outputLineEdit2->clear();
 
-    m_deviceNameLineEdit->text().toWCharArray(device);
-
-    hr = m_IUtlType->SetDevice(device, lValue, &lRet);
+    hr = m_IUtlType->SetDevice(s.AllocSysString(), lValue, &lRet);
 
     m_returnCodeLineEdit->setText(QString::number(hr, 16));
 }

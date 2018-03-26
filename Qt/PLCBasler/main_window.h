@@ -10,6 +10,8 @@
 #include <QSplitter>
 #include <QPushButton>
 #include <QLabel>
+#include <QSpinBox>
+#include <QComboBox>
 
 class MainWindow : public QMainWindow
 {
@@ -20,6 +22,8 @@ public:
     ~MainWindow();
 
 private slots:
+    void grabOne();
+    void triggerModeChanged(int index);
     void openCamera();
     void closeCamera();
     void saveCurrentImage();
@@ -30,6 +34,12 @@ private:
     GalleryWidget *m_galleryWidget;
     QFrame        *m_cameraWidget;
     QLabel        *m_statusLabel;
+    QLabel        *m_exposureTimeLabel;
+    QLabel        *m_gainLabel;
+    QLabel        *m_triggerModeLabel;
+    QSpinBox      *m_exposureTimeSpinBox;
+    QSpinBox      *m_gainSpinBox;
+    QComboBox     *m_triggerModeComboBox;
 
     QPushButton   *m_openPushButton;
     QPushButton   *m_closePushButton;
@@ -37,6 +47,7 @@ private:
 
     bool m_isClosed;
     bool m_isSaved;
+    bool m_triggerModeIsON;
 };
 
 #endif // MAIN_WINDOW_H
