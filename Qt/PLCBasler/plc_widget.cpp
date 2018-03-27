@@ -107,6 +107,54 @@ void PLCWidget::getCpuType()
     //delete cpuName;
 }
 
+//void PLCWidget::read()
+//{
+//    long hr;
+//    long lRet;
+//    long lValue;
+
+//    QByteArray ba = m_deviceNameLineEdit->text().toLatin1();
+//    int len = ba.size();
+//    char *device = new char[len + 1];
+//    strcpy(device, ba.data());
+//    device[len] = '\0';
+//    CString s(device);
+
+//    m_outputLineEdit1->clear();
+//    m_outputLineEdit2->clear();
+
+//    hr = m_IUtlType->GetDevice(s.AllocSysString(), &lValue, &lRet);
+
+//    if (SUCCEEDED(hr))
+//    {
+//        if(lRet == 0x00)
+//            m_outputLineEdit1->setText(QString::number(lValue, 16));
+//    }
+
+//    m_returnCodeLineEdit->setText(QString::number(lRet, 16));
+//}
+
+//void PLCWidget::write()
+//{
+//    long hr;
+//    long lRet;
+//    long lValue = m_deviceValueLineEdit->text().toLong();
+
+//    QByteArray ba = m_deviceNameLineEdit->text().toLatin1();
+//    int len = ba.size();
+//    char *device = new char[len + 1];
+//    strcpy(device, ba.data());
+//    device[len] = '\0';
+//    CString s(device);
+
+//    m_outputLineEdit1->clear();
+//    m_outputLineEdit2->clear();
+
+//    hr = m_IUtlType->SetDevice(s.AllocSysString(), lValue, &lRet);
+
+//    m_returnCodeLineEdit->setText(QString::number(hr, 16));
+//}
+
 void PLCWidget::read()
 {
     long hr;
@@ -154,3 +202,4 @@ void PLCWidget::write()
 
     m_returnCodeLineEdit->setText(QString::number(hr, 16));
 }
+

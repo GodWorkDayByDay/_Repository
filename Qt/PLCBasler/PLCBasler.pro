@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 QT += core gui
-QT += testlib
 
 INCLUDEPATH += $$PWD\MELSEC\Include \
                $$PWD\pylon\include \

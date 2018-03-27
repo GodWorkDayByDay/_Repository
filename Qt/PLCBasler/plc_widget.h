@@ -17,7 +17,7 @@ public:
     explicit PLCWidget(QFrame *parent = 0);
     ~PLCWidget();
 
-private slots:
+public slots:
     void openCommucation();
     void getCpuType();
     void read();
