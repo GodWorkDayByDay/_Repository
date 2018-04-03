@@ -22,11 +22,12 @@ public:
     ~MainWindow();
 
 private slots:
-    void grabOne();
     void triggerModeChanged(int index);
     void openCamera();
     void closeCamera();
     void saveCurrentImage();
+    void softwareTrigger();
+    void openCamera1();
 
 private:
     QSplitter     *m_mainWidget;
@@ -47,7 +48,8 @@ private:
 
     bool m_isClosed;
     bool m_isSaved;
-    bool m_triggerModeIsON;
+    bool m_isSoftwareTriggered;
+    int  m_triggerModeMask;
 };
 
 #endif // MAIN_WINDOW_H

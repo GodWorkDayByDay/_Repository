@@ -12,8 +12,8 @@
        can be copied and modified for creating own configuration classes.
 */
 
-#ifndef INCLUDED_HARDWARETRIGGERCONFIGURATION_H_4655834
-#define INCLUDED_HARDWARETRIGGERCONFIGURATION_H_4655834
+#ifndef INCLUDED_SOFTWARETRIGGERCONFIGURATION_H_4655834
+#define INCLUDED_SOFTWARETRIGGERCONFIGURATION_H_4655834
 
 #include <pylon/Platform.h>
 
@@ -37,7 +37,7 @@ namespace Pylon
         The %CSoftwareTriggerConfiguration is provided as header-only file.
         The code can be copied and modified for creating own configuration classes.
     */
-    class CHardwareTriggerConfiguration : public CConfigurationEventHandler
+    class CSoftwareTriggerConfiguration : public CConfigurationEventHandler
     {
     public:
         /// Apply software trigger configuration.
@@ -86,7 +86,7 @@ namespace Pylon
                             triggerMode->FromString( "On");
 
                             // The trigger source must be set to 'Software'.
-                            //CEnumerationPtr(nodemap.GetNode("TriggerSource"))->FromString("Software");
+                            CEnumerationPtr(nodemap.GetNode("TriggerSource"))->FromString("Software");
 
                             //// Alternative hardware trigger configuration:
                             //// This configuration can be copied and modified to create a hardware trigger configuration.
@@ -94,12 +94,12 @@ namespace Pylon
                             //// use the commented lines as a starting point.
                             //// The camera user's manual contains more information about available configurations.
                             //// The Basler pylon Viewer tool can be used to test the selected settings first.
-                            //qDebug()<<"success";
+
                             //// The trigger source must be set to the trigger input, e.g. 'Line1'.
-                            CEnumerationPtr(nodemap.GetNode("TriggerSource"))->FromString("Line1");
+                            //CEnumerationPtr(nodemap.GetNode("TriggerSource"))->FromString("Line1");
 
                             ////The trigger activation must be set to e.g. 'RisingEdge'.
-                            CEnumerationPtr(nodemap.GetNode("TriggerActivation"))->FromString("RisingEdge");
+                            //CEnumerationPtr(nodemap.GetNode("TriggerActivation"))->FromString("RisingEdge");
                         }
                         else
                         {
@@ -149,4 +149,4 @@ namespace Pylon
 #   pragma pack(pop)
 #endif /* _MSC_VER */
 
-#endif /* INCLUDED_HARDWARETRIGGERCONFIGURATION_H_4655834 */
+#endif /* INCLUDED_SOFTWARETRIGGERCONFIGURATION_H_4655834 */

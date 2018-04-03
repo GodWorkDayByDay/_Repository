@@ -17,6 +17,9 @@ public:
     explicit PLCWidget(QFrame *parent = 0);
     ~PLCWidget();
 
+signals:
+    void emitSoftwareTrigger();
+
 public slots:
     void openCommucation();
     void getCpuType();

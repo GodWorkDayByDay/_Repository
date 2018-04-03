@@ -6,12 +6,15 @@
 #include <QCoreApplication>
 #include <SampleImageCreator.h>
 #include <HardwareTriggerConfiguration.h>
+#include <SoftwareTriggerConfiguration.h>
 #include <pylon/gige/BaslerGigEInstantCamera.h>
+#include <ConfigurationEventPrinter.h>
+#include <ImageEventPrinter.h>
 
 MainWindow::MainWindow(QMainWindow *parent) : QMainWindow(parent)
 {
-    m_isClosed = m_isSaved = false;
-    m_triggerModeIsON = false;
+    m_isSoftwareTriggered = m_isClosed = m_isSaved = false;
+    m_triggerModeMask = 0; // 0->OFF, 1->SoftwareTrigger ON, 2->HardwareTrigger ON
 
     m_mainWidget = new QSplitter(Qt::Horizontal);
 
@@ -19,7 +22,7 @@ MainWindow::MainWindow(QMainWindow *parent) : QMainWindow(parent)
     m_galleryWidget = new GalleryWidget;
     m_cameraWidget  = new QFrame(m_mainWidget);
 
-    m_cameraWidget->setMinimumSize(250, 400);
+    m_cameraWidget->setMinimumSize(350, 400);
     m_cameraWidget->setFrameStyle(QFrame::Panel | QFrame::Raised);
 
     m_exposureTimeLabel   = new QLabel(tr("Exposure Time"));
@@ -29,13 +32,13 @@ MainWindow::MainWindow(QMainWindow *parent) : QMainWindow(parent)
     m_exposureTimeSpinBox->setRange(1, 65535);
     m_gainSpinBox->setRange(1, 255);
     m_exposureTimeSpinBox->setValue(5000);
-    m_gainSpinBox->setValue(136);
+    m_gainSpinBox->setValue(231);
 
     m_triggerModeLabel = new QLabel(tr("Trigger Mode"));
     m_triggerModeComboBox = new QComboBox;
     m_triggerModeComboBox->addItem(tr("OFF"));
-    m_triggerModeComboBox->addItem(tr("ON"));
-    m_triggerModeComboBox->setEnabled(false);
+    m_triggerModeComboBox->addItem(tr("Software Trigger"));
+    m_triggerModeComboBox->addItem(tr("Hardware Trigger"));
 
     m_openPushButton  = new QPushButton(tr("Open Camera"));
     m_closePushButton = new QPushButton(tr("Close Camera"));
@@ -64,39 +67,22 @@ MainWindow::MainWindow(QMainWindow *parent) : QMainWindow(parent)
     statusBar()->addWidget(m_statusLabel);
 
     connect(m_triggerModeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(triggerModeChanged(int)));
-    connect(m_openPushButton, SIGNAL(clicked(bool)), SLOT(openCamera()));
+    connect(m_openPushButton, SIGNAL(clicked(bool)), SLOT(openCamera1()));
     connect(m_closePushButton, SIGNAL(clicked(bool)), SLOT(closeCamera()));
     connect(m_savePushButton, SIGNAL(clicked(bool)), SLOT(saveCurrentImage()));
+    connect(m_plcWidget, SIGNAL(emitSoftwareTrigger()), SLOT(softwareTrigger()));
 }
 
 MainWindow::~MainWindow()
 {
 }
 
-void MainWindow::grabOne()
-{
-//    using namespace Pylon;
-//    CGrabResultPtr ptrGrabResult;
-//    CInstantCamera Camera( CTlFactory::GetInstance().CreateFirstDevice());
-
-//    if ( Camera.GrabOne( 1000, ptrGrabResult))
-//    {
-//        // The pylon grab result smart pointer classes provide a cast operator to the IImage
-//        // interface. This makes it possible to pass a grab result directly to the
-//        // function that saves an image to disk.
-//        CImagePersistence::Save( ImageFileFormat_Png, "GrabbedImage.png", ptrGrabResult);
-//    }
-}
-
 void MainWindow::triggerModeChanged(int index)
 {
-    if (index == 0)
-        m_triggerModeIsON = false;
-    else
-        m_triggerModeIsON = true;
+    m_triggerModeMask = index;
 }
 
-void MainWindow::openCamera()
+void MainWindow::openCamera1()
 {
     m_isClosed = false;
     m_isSaved  = false;
@@ -107,7 +93,6 @@ void MainWindow::openCamera()
     m_savePushButton->setEnabled(true);
     m_exposureTimeSpinBox->setEnabled(false);
     m_gainSpinBox->setEnabled(false);
-    m_triggerModeComboBox->setEnabled(true);
 
     m_statusLabel->setText(tr("Start grabbing, please wait......"));
 
@@ -120,83 +105,160 @@ void MainWindow::openCamera()
     using namespace Basler_GigECameraParams;
 
     const uint32_t c_countOfImagesToGrab = 1000;
-    int num = 0;
 
     PylonInitialize();
 
+    CPylonImageWindow window;
+    window.Create(0, 0, 0, 500, 500);
+    window.Show();
+
+    CDeviceInfo info;
+    info.SetDeviceClass(CBaslerGigEInstantCamera::DeviceClass());
+
+    int num = 0;
+    CGrabResultPtr ptrGrabResult;
     try
     {
-        CPylonImageWindow window;
-        window.Create(0, 200, 200, 500, 500);
-        window.Show();
-
-        CDeviceInfo info;
-        info.SetDeviceClass(CBaslerGigEInstantCamera::DeviceClass());
-        CBaslerGigEInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice(info));
-
-        camera.Open();
-        camera.GainAuto.SetValue(GainAuto_Off);
-        camera.GainRaw.SetValue(m_gainSpinBox->value());
-        camera.ExposureAuto.SetValue(ExposureAuto_Off);
-        camera.ExposureTimeRaw.SetValue(m_exposureTimeSpinBox->value());
-
-        camera.RegisterConfiguration(new CHardwareTriggerConfiguration, RegistrationMode_ReplaceAll, Cleanup_Delete);
-        camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
-
-        CGrabResultPtr ptrGrabResult;
-        while (camera.IsGrabbing())
+        while (!m_isClosed)
         {
-            if (m_triggerModeIsON)
+            switch (m_triggerModeMask)
             {
-                int nBuffersInQueue = 0;
+            case 0:
+            {
+                CBaslerGigEInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice(info));
+                camera.Open();
+                camera.GainAuto.SetValue(GainAuto_Off);
+                camera.GainRaw.SetValue(m_gainSpinBox->value());
+                camera.ExposureAuto.SetValue(ExposureAuto_Off);
+                camera.ExposureTimeRaw.SetValue(m_exposureTimeSpinBox->value());
+                camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
 
-
-                while (camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_Return) && m_triggerModeIsON)
+                while (camera.IsGrabbing() && m_triggerModeMask == 0 && !m_isClosed)
                 {
-                    nBuffersInQueue++;
-                    m_statusLabel->setText("Skipped " + QString::number(nBuffersInQueue, 10) + " images");
-                    QCoreApplication::processEvents();
+                    camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_Return);
+
+                    if (ptrGrabResult->GrabSucceeded())
+                    {
+                        num++;
+
+                        m_statusLabel->setText("You are grabbing " + QString::number(num));
+                        CPylonImage image;
+                        image.AttachGrabResultBuffer(ptrGrabResult);
+                        window.SetImage(image);
+
+                        if (m_isSaved)
+                        {
+                            QString path = QCoreApplication::applicationDirPath() + "/save.png";
+                            QByteArray ba = path.toLatin1();
+                            CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
+
+                            m_isSaved = false;
+
+                            QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save.png");
+                            m_galleryWidget->setImage(pixmap);
+                            m_galleryWidget->repaint();
+                            m_galleryWidget->show();
+                        }
+
+                        QElapsedTimer t;
+                        t.start();
+                        while (t.elapsed() <= 200)
+                            QCoreApplication::processEvents();
+                    }
+                    else
+                        m_statusLabel->setText("Error image grab failed: " + QString(ptrGrabResult->GetErrorDescription().c_str()));
                 }
-            }
 
-            camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_ThrowException);
-
-            if (ptrGrabResult->GrabSucceeded())
-            {
-                num++;
-
-                m_statusLabel->setText("You are grabbing " + QString::number(num));
-                CPylonImage image;
-                image.AttachGrabResultBuffer(ptrGrabResult);
-                window.SetImage(image);
-
-                if (m_isSaved)
-                {
-                    QString path = QCoreApplication::applicationDirPath() + "/save.png";
-                    QByteArray ba = path.toLatin1();
-                    CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
-
-                    m_isSaved = false;
-
-                    QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save.png");
-                    m_galleryWidget->setImage(pixmap);
-                    m_galleryWidget->repaint();
-                    m_galleryWidget->show();
-                }
-
-                QElapsedTimer t;
-                t.start();
-                while (t.elapsed() <= 200)
-                    QCoreApplication::processEvents();
-            }
-            else
-                m_statusLabel->setText("Error image grab failed: " + QString(ptrGrabResult->GetErrorDescription().c_str()));
-
-            if (m_isClosed)
-            {
-                camera.Close();
                 camera.StopGrabbing();
-                m_statusLabel->setText(tr("Camera has been closed!"));
+                camera.Close();
+
+                break;
+            }
+            case 1:
+            {
+                CBaslerGigEInstantCamera camera_software(CTlFactory::GetInstance().CreateFirstDevice(info));
+                camera_software.RegisterConfiguration(new CSoftwareTriggerConfiguration, RegistrationMode_ReplaceAll, Cleanup_Delete);
+                camera_software.Open();
+                camera_software.GainAuto.SetValue(GainAuto_Off);
+                camera_software.GainRaw.SetValue(m_gainSpinBox->value());
+                camera_software.ExposureAuto.SetValue(ExposureAuto_Off);
+                camera_software.ExposureTimeRaw.SetValue(m_exposureTimeSpinBox->value());
+                camera_software.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
+
+                while (m_triggerModeMask == 1 && !m_isClosed)
+                {
+                    QCoreApplication::processEvents();
+
+                    if (m_isSoftwareTriggered)
+                    {
+                        while(!camera_software.RetrieveResult(0, ptrGrabResult, TimeoutHandling_Return))
+                            camera_software.ExecuteSoftwareTrigger();
+
+                        num++;
+
+                        m_statusLabel->setText("You are grabbing " + QString::number(num));
+                        CPylonImage image;
+                        image.AttachGrabResultBuffer(ptrGrabResult);
+                        window.SetImage(image);
+
+                        QString path = QCoreApplication::applicationDirPath() + "/save_software_trigger.png";
+                        QByteArray ba = path.toLatin1();
+                        CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
+
+                        m_isSoftwareTriggered = false;
+
+                        QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save_software_trigger.png");
+                        m_galleryWidget->setImage(pixmap);
+                        m_galleryWidget->repaint();
+                        m_galleryWidget->show();
+                    }
+                }
+
+                camera_software.StopGrabbing();
+                camera_software.Close();
+
+                break;
+            }
+            case 2:
+            {
+                CBaslerGigEInstantCamera camera_hardware(CTlFactory::GetInstance().CreateFirstDevice(info));
+                camera_hardware.RegisterConfiguration(new CHardwareTriggerConfiguration, RegistrationMode_ReplaceAll, Cleanup_Delete);
+                camera_hardware.Open();
+                camera_hardware.GainAuto.SetValue(GainAuto_Off);
+                camera_hardware.GainRaw.SetValue(m_gainSpinBox->value());
+                camera_hardware.ExposureAuto.SetValue(ExposureAuto_Off);
+                camera_hardware.ExposureTimeRaw.SetValue(m_exposureTimeSpinBox->value());
+                camera_hardware.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
+
+                while (m_triggerModeMask == 2 && !m_isClosed)
+                {
+                    QCoreApplication::processEvents();
+
+                    if (camera_hardware.RetrieveResult(10, ptrGrabResult, TimeoutHandling_Return))
+                    {
+                        num++;
+
+                        m_statusLabel->setText("You are grabbing " + QString::number(num));
+                        CPylonImage image;
+                        image.AttachGrabResultBuffer(ptrGrabResult);
+                        window.SetImage(image);
+
+                        QString path = QCoreApplication::applicationDirPath() + "/save_hardware_trigger.png";
+                        QByteArray ba = path.toLatin1();
+                        CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
+
+                        QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save_hardware_trigger.png");
+                        m_galleryWidget->setImage(pixmap);
+                        m_galleryWidget->repaint();
+                        m_galleryWidget->show();
+                    }
+                }
+
+                camera_hardware.StopGrabbing();
+                camera_hardware.Close();
+
+                break;
+            }
             }
         }
     }
@@ -206,9 +268,11 @@ void MainWindow::openCamera()
         closeCamera();
     }
 
+    m_statusLabel->setText(tr("Camera has been closed!"));
+
     PylonTerminate();
 }
-/*
+
 void MainWindow::openCamera()
 {
     m_isClosed = false;
@@ -220,7 +284,6 @@ void MainWindow::openCamera()
     m_savePushButton->setEnabled(true);
     m_exposureTimeSpinBox->setEnabled(false);
     m_gainSpinBox->setEnabled(false);
-    m_triggerModeComboBox->setEnabled(true);
 
     m_statusLabel->setText(tr("Start grabbing, please wait......"));
 
@@ -240,7 +303,7 @@ void MainWindow::openCamera()
     try
     {
         CPylonImageWindow window;
-        window.Create(0, 200, 200, 500, 500);
+        window.Create(0, 0, 0, 500, 500);
         window.Show();
 
         CDeviceInfo info;
@@ -248,8 +311,6 @@ void MainWindow::openCamera()
         CBaslerGigEInstantCamera camera(CTlFactory::GetInstance().CreateFirstDevice(info));
 
         camera.Open();
-
-
         camera.GainAuto.SetValue(GainAuto_Off);
         camera.GainRaw.SetValue(m_gainSpinBox->value());
         camera.ExposureAuto.SetValue(ExposureAuto_Off);
@@ -260,19 +321,106 @@ void MainWindow::openCamera()
         CGrabResultPtr ptrGrabResult;
         while (camera.IsGrabbing())
         {
-            camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_ThrowException);
-
-            if (ptrGrabResult->GrabSucceeded())
+            if (m_triggerModeMask == 2)
             {
-                num++;
+                camera.StopGrabbing();
+                camera.Close();
+                camera.RegisterConfiguration(new CHardwareTriggerConfiguration, RegistrationMode_ReplaceAll, Cleanup_Delete);
+                camera.Open();
+                camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
 
-                m_statusLabel->setText("You are grabbing " + QString::number(num));
-                CPylonImage image;
-                image.AttachGrabResultBuffer(ptrGrabResult);
-                window.SetImage(image);
-
-                do
+                while (m_triggerModeMask == 2 && !m_isClosed)
                 {
+                    QCoreApplication::processEvents();
+
+                    if (camera.RetrieveResult(10, ptrGrabResult, TimeoutHandling_Return))
+                    {
+                        num++;
+
+                        m_statusLabel->setText("You are grabbing " + QString::number(num));
+                        CPylonImage image;
+                        image.AttachGrabResultBuffer(ptrGrabResult);
+                        window.SetImage(image);
+
+                        QString path = QCoreApplication::applicationDirPath() + "/save_hardware_trigger.png";
+                        QByteArray ba = path.toLatin1();
+                        CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
+
+                        QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save_hardware_trigger.png");
+                        m_galleryWidget->setImage(pixmap);
+                        m_galleryWidget->repaint();
+                        m_galleryWidget->show();
+                    }
+                }
+            }
+
+            if (m_triggerModeMask == 1)
+            {
+                camera.StopGrabbing();
+                camera.Close();
+                CSoftwareTriggerConfiguration* p = new CSoftwareTriggerConfiguration;
+                camera.RegisterConfiguration(p, RegistrationMode_ReplaceAll, Cleanup_Delete);
+                camera.Open();
+                camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
+
+                while (m_triggerModeMask == 1 && !m_isClosed)
+                {
+                    QCoreApplication::processEvents();
+
+                    if (m_isSoftwareTriggered)
+                    {
+
+                        while(!camera.RetrieveResult(0, ptrGrabResult, TimeoutHandling_Return))
+                            camera.ExecuteSoftwareTrigger();
+
+                        num++;
+
+                        m_statusLabel->setText("You are grabbing " + QString::number(num));
+                        CPylonImage image;
+                        image.AttachGrabResultBuffer(ptrGrabResult);
+                        window.SetImage(image);
+
+                        QString path = QCoreApplication::applicationDirPath() + "/save_software_trigger.png";
+                        QByteArray ba = path.toLatin1();
+                        CImagePersistence::Save(ImageFileFormat_Png, ba.data(), ptrGrabResult);
+
+                        m_isSoftwareTriggered = false;
+
+                        QPixmap pixmap(QCoreApplication::applicationDirPath() + "/save_software_trigger.png");
+                        m_galleryWidget->setImage(pixmap);
+                        m_galleryWidget->repaint();
+                        m_galleryWidget->show();
+                    }
+                }
+
+//                camera.StopGrabbing();
+//                camera.Close();
+//                camera.DeregisterConfiguration(p);
+//                camera.Open();
+//                camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
+            }
+
+            if (m_isClosed)
+            {
+                camera.StopGrabbing();
+                camera.Close();
+                m_statusLabel->setText(tr("Camera has been closed!"));
+            }
+            else
+            {
+
+                //camera.StartGrabbing(c_countOfImagesToGrab, GrabStrategy_LatestImageOnly);
+                camera.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_Return);
+
+                if (ptrGrabResult->GrabSucceeded())
+                {
+                    num++;
+
+                    m_statusLabel->setText("You are grabbing " + QString::number(num));
+                    CPylonImage image;
+                    image.AttachGrabResultBuffer(ptrGrabResult);
+                    window.SetImage(image);
+
                     if (m_isSaved)
                     {
                         QString path = QCoreApplication::applicationDirPath() + "/save.png";
@@ -291,27 +439,20 @@ void MainWindow::openCamera()
                     t.start();
                     while (t.elapsed() <= 200)
                         QCoreApplication::processEvents();
-
-                }while (m_triggerModeIsON);
-            }
-            else
-                m_statusLabel->setText("Error image grab failed: " + QString(ptrGrabResult->GetErrorDescription().c_str()));
-
-            if (m_isClosed)
-            {
-                camera.Close();
-                camera.StopGrabbing();
-                m_statusLabel->setText(tr("Camera has been closed!"));
+                }
+                else
+                    m_statusLabel->setText("Error image grab failed: " + QString(ptrGrabResult->GetErrorDescription().c_str()));
             }
         }
     }
     catch (const GenericException &e)
     {
         m_statusLabel->setText("An exception occurred." + QString(e.GetDescription()));
+        closeCamera();
     }
 
     PylonTerminate();
-}*/
+}
 
 void MainWindow::closeCamera()
 {
@@ -322,10 +463,14 @@ void MainWindow::closeCamera()
     m_savePushButton->setEnabled(false);
     m_exposureTimeSpinBox->setEnabled(true);
     m_gainSpinBox->setEnabled(true);
-    m_triggerModeComboBox->setEnabled(false);
 }
 
 void MainWindow::saveCurrentImage()
 {
     m_isSaved = true;
+}
+
+void MainWindow::softwareTrigger()
+{
+    m_isSoftwareTriggered = true;
 }
