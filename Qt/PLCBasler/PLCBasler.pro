@@ -8,11 +8,18 @@ QT += core gui
 
 INCLUDEPATH += $$PWD\MELSEC\Include \
                $$PWD\pylon\include \
-               $$PWD\pylon\sample_include
+               $$PWD\pylon\sample_include \
+               $$PWD\Mil\Include
+
+LIBS += -L$$PWD\Mil\LIB -lMil \
+                        -lMilpat \
+                        -lmilcolor\
+                        -lMilim
+                        #-lMIL-little
 
 LIBS += -L$$PWD -lOle32
 
-LIBS += -L$$PWD\pylon\lib\Win32 \
+LIBS += -L$$PWD\pylon\lib\win32 \
                             -lGCBase_MD_VC120_v3_0_Basler_pylon_v5_0 \
                             -lGenApi_MD_VC120_v3_0_Basler_pylon_v5_0 \
                             -lPylonBase_MD_VC120_v5_0 \
@@ -40,10 +47,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         main_window.cpp \
+    plc.cpp \
+    image_window.cpp \
+    milc.cpp \
     gallery_widget.cpp \
-    plc_widget.cpp
+    admin_dialog.cpp
 
 HEADERS += \
         main_window.h \
+    plc.h \
+    image_window.h \
+    milc.h \
     gallery_widget.h \
-    plc_widget.h
+    admin_dialog.h

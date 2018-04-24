@@ -6,6 +6,10 @@
 
 GalleryWidget::GalleryWidget(QWidget *parent) : QWidget(parent)
 {
+    //setWindowTitle(QString::fromLocal8Bit("模板裁剪面板"));
+    setWindowTitle(QObject::trUtf8("模板裁剪面板"));
+
+    m_saveMode = 0;
     m_screenWidth = 640;
     m_screenHeight = 480;
     setMouseTracking(true);
@@ -14,7 +18,6 @@ GalleryWidget::GalleryWidget(QWidget *parent) : QWidget(parent)
     m_currentSelectRect   = QRect(0, 0, 0, 0);
     m_currentCaptureState = NotCapture;
     m_stretchRectState    = NotSelect;
-    m_savedImage.load(QCoreApplication::applicationDirPath() + "/save.png");
 }
 
 GalleryWidget::~GalleryWidget()
@@ -149,8 +152,12 @@ void GalleryWidget::keyPressEvent(QKeyEvent *event)
     {
         QRect rect = getRect(m_beginPoint, m_endPoint);
         m_savedImage = m_savedImage.copy(widgetToImage(rect));
-        QString suffix = QDateTime::currentDateTime().toString("yyyyMMddhhmmss") + ".png";
-        m_savedImage.save(QCoreApplication::applicationDirPath() + "/save_capture_" + suffix);
+
+        if (m_saveMode == 1)
+            m_savedImage.save(QCoreApplication::applicationDirPath() + "/model1.jpg");
+        else if(m_saveMode == 2)
+            m_savedImage.save(QCoreApplication::applicationDirPath() + "/model2.jpg");
+
         m_currentCaptureState = NotCapture;
         repaint();
     }
@@ -206,7 +213,7 @@ QRect GalleryWidget::getMoveRect()
     return getRect(beginPoint, endPoint);
 }
 
-QRect GalleryWidget::getStretchRect() ////////////////////////////////
+QRect GalleryWidget::getStretchRect()
 {
     QRect stretchRect;
     QRect currentRect = getRect(m_beginPoint, m_endPoint);

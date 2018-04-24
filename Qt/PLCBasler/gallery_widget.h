@@ -51,6 +51,9 @@ private:
     void setStretchCursorStyle(StretchRectState state);
     void drawStretchRect();
 
+public:
+    int  m_saveMode; // 0 is save source.jpg, 1 is save model1.jpg, 2 is save model2.jpg
+
 private:
     int      m_screenWidth;
     int      m_screenHeight;
