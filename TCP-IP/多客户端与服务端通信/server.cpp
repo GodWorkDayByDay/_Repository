@@ -96,6 +96,7 @@ public:
                     write(m_client_fd, recv_buffer, ret);
                 }
 
+                close(m_client_fd);
                 exit(EXIT_SUCCESS);
             }
             else

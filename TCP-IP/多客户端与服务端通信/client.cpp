@@ -22,12 +22,6 @@ public:
         m_client_fd = -1;
     }
 
-    ~Client()
-    {
-        if (m_client_fd != -1)
-            close(m_client_fd);
-    }
-
     void open()
     {
         if ((m_client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -47,7 +41,7 @@ public:
         memset(send_buffer, 0, sizeof(send_buffer));
         memset(recv_buffer, 0, sizeof(recv_buffer));
 
-        while (scanf("%s", send_buffer))
+        while (~scanf("%s", send_buffer))
         {
             write(m_client_fd, send_buffer, strlen(send_buffer));
             read(m_client_fd, recv_buffer, sizeof(recv_buffer));
@@ -55,6 +49,9 @@ public:
             memset(send_buffer, 0, sizeof(send_buffer));
             memset(recv_buffer, 0, sizeof(recv_buffer));
         }
+        
+        printf("client itself close!\n");
+        close(m_client_fd);
     }
 
 private:
