@@ -41,21 +41,21 @@ public:
     }
 
     /**
-     * ´Ó fd ¶ÁÈ¡ count ¸ö×Ö½Ú£¬±£´æµ½ buf ÖÐ£¬²¢·µ»ØÒÑ¶ÁÈ¡µÄ×Ö½ÚÊý¡£
-     * Ñ­»·½øÐÐ¶ÁÈ¡£¬Ö±µ½¶ÁÈ¡µÄ×Ö½ÚÊýÎª count£»Èô¶Ô·½¹Ø±Õ£¬Ôò
-     * ²»ÔÙ¶ÁÈ¡Ö±½Ó·µ»ØÒÑ¶Áµ½µÄÊý¾Ý¡£
+     * ä»Ž fd è¯»å– count ä¸ªå­—èŠ‚ï¼Œä¿å­˜åˆ° buf ä¸­ï¼Œå¹¶è¿”å›žå·²è¯»å–çš„å­—èŠ‚æ•°ã€‚
+     * å¾ªçŽ¯è¿›è¡Œè¯»å–ï¼Œç›´åˆ°è¯»å–çš„å­—èŠ‚æ•°ä¸º countï¼›è‹¥å¯¹æ–¹å…³é—­ï¼Œåˆ™
+     * ä¸å†è¯»å–ç›´æŽ¥è¿”å›žå·²è¯»åˆ°çš„æ•°æ®ã€‚
      */
     ssize_t read_n(int & fd, void* buf, size_t count)
     {
-        size_t n_left = count; // Î´¶ÁµÄ×Ö½ÚÊý
-        ssize_t n_read = 0; // ÒÑ¶ÁµÄ×Ö½ÚÊý
+        size_t n_left = count; // æœªè¯»çš„å­—èŠ‚æ•°
+        ssize_t n_read = 0; // å·²è¯»çš„å­—èŠ‚æ•°
         char* buffer = (char*)buf;
 
         while (n_left > 0)
         {
             if ((n_read = read(fd, buffer, n_left)) < 0)
             {
-                if (errno == EINTR) // ±»ÐÅºÅÖÐ¶Ï
+                if (errno == EINTR) // è¢«ä¿¡å·ä¸­æ–­
                     continue;
 
                 ERR_EXIT("server read function failed! ");
@@ -76,19 +76,19 @@ public:
     }
 
     /**
-     * Ïò fd Ð´Èë buffer µÄÇ° count ¸ö×Ö½Ú£¬²¢·µ»ØÒÑÐ´µÄ×Ö½ÚÊý¡£
+     * å‘ fd å†™å…¥ buffer çš„å‰ count ä¸ªå­—èŠ‚ï¼Œå¹¶è¿”å›žå·²å†™çš„å­—èŠ‚æ•°ã€‚
      */
     ssize_t write_n(int & fd, void* buf, size_t count)
     {
-        size_t n_left = count; // Î´Ð´µÄ×Ö½ÚÊý
-        ssize_t n_written = 0;  // ÒÑÐ´µÄ×Ö½ÚÊý
+        size_t n_left = count; // æœªå†™çš„å­—èŠ‚æ•°
+        ssize_t n_written = 0;  // å·²å†™çš„å­—èŠ‚æ•°
         char* buffer = (char*)buf;
 
         while (n_left > 0)
         {
             if ((n_written = write(fd, buffer, n_left)) < 0)
             {
-                if (errno == EINTR) // ±»ÐÅºÅÖÐ¶Ï
+                if (errno == EINTR) // è¢«ä¿¡å·ä¸­æ–­
                     continue;
 
                 ERR_EXIT("server write function failed! ");
@@ -109,7 +109,7 @@ public:
         if ((m_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             ERR_EXIT("client socket function failed! ");
 
-        // ¿Í»§¶Ë²»ÐèÒª°ó¶¨£¨bind£©, Ò²²»ÐèÒª¼àÌý£¨listen£©, Ö±½ÓÁ¬½Ó¹ýÈ¥¾Í¿ÉÒÔ
+        // å®¢æˆ·ç«¯ä¸éœ€è¦ç»‘å®šï¼ˆbindï¼‰, ä¹Ÿä¸éœ€è¦ç›‘å¬ï¼ˆlistenï¼‰, ç›´æŽ¥è¿žæŽ¥è¿‡åŽ»å°±å¯ä»¥
         if (connect(m_fd, (sockaddr*)&m_client_addr, sizeof(m_client_addr)) < 0)
             ERR_EXIT("client connect function failed! ");
 
@@ -120,6 +120,7 @@ public:
             int n = strlen(send_packet.buffer);
             send_packet.len = htonl(n);
             write_n(m_fd, &send_packet, sizeof(Packet::len) + n);
+            memset(&send_packet, 0, sizeof(send_packet));
         }
     }
 
@@ -137,4 +138,3 @@ int main()
 
     return 0;
 }
-

@@ -12,6 +12,14 @@
 
 using namespace std;
 
+
+/**
+ * TODO
+ * 1. select ç†è§£
+ * 2. fd å…³é—­
+ */
+
+
 #define ERR_EXIT(m) \
     do \
     { \
@@ -42,21 +50,21 @@ public:
     }
 
     /**
-     * ´Ó fd ¶ÁÈ¡ count ¸ö×Ö½Ú£¬±£´æµ½ buf ÖĞ£¬²¢·µ»ØÒÑ¶ÁÈ¡µÄ×Ö½ÚÊı¡£
-     * Ñ­»·½øĞĞ¶ÁÈ¡£¬Ö±µ½¶ÁÈ¡µÄ×Ö½ÚÊıÎª count£»Èô¶Ô·½¹Ø±Õ£¬Ôò
-     * ²»ÔÙ¶ÁÈ¡Ö±½Ó·µ»ØÒÑ¶Áµ½µÄÊı¾İ¡£
+     * ä» fd è¯»å– count ä¸ªå­—èŠ‚ï¼Œä¿å­˜åˆ° buf ä¸­ï¼Œå¹¶è¿”å›å·²è¯»å–çš„å­—èŠ‚æ•°ã€‚
+     * å¾ªç¯è¿›è¡Œè¯»å–ï¼Œç›´åˆ°è¯»å–çš„å­—èŠ‚æ•°ä¸º countï¼›è‹¥å¯¹æ–¹å…³é—­ï¼Œåˆ™
+     * ä¸å†è¯»å–ç›´æ¥è¿”å›å·²è¯»åˆ°çš„æ•°æ®ã€‚
      */
     ssize_t read_n(int & fd, void* buf, size_t count)
     {
-        size_t n_left = count; // Î´¶ÁµÄ×Ö½ÚÊı
-        ssize_t n_read = 0; // ÒÑ¶ÁµÄ×Ö½ÚÊı
+        size_t n_left = count; // æœªè¯»çš„å­—èŠ‚æ•°
+        ssize_t n_read = 0; // å·²è¯»çš„å­—èŠ‚æ•°
         char* buffer = (char*)buf;
 
         while (n_left > 0)
         {
             if ((n_read = read(fd, buffer, n_left)) < 0)
             {
-                if (errno == EINTR) // ±»ĞÅºÅÖĞ¶Ï
+                if (errno == EINTR) // è¢«ä¿¡å·ä¸­æ–­
                     continue;
 
                 ERR_EXIT("server read function failed! ");
@@ -77,19 +85,19 @@ public:
     }
 
     /**
-     * Ïò fd Ğ´Èë buffer µÄÇ° count ¸ö×Ö½Ú£¬²¢·µ»ØÒÑĞ´µÄ×Ö½ÚÊı¡£
+     * å‘ fd å†™å…¥ buffer çš„å‰ count ä¸ªå­—èŠ‚ï¼Œå¹¶è¿”å›å·²å†™çš„å­—èŠ‚æ•°ã€‚
      */
     ssize_t write_n(int & fd, void* buf, size_t count)
     {
-        size_t n_left = count; // Î´Ğ´µÄ×Ö½ÚÊı
-        ssize_t n_written = 0;  // ÒÑĞ´µÄ×Ö½ÚÊı
+        size_t n_left = count; // æœªå†™çš„å­—èŠ‚æ•°
+        ssize_t n_written = 0;  // å·²å†™çš„å­—èŠ‚æ•°
         char* buffer = (char*)buf;
 
         while (n_left > 0)
         {
             if ((n_written = write(fd, buffer, n_left)) < 0)
             {
-                if (errno == EINTR) // ±»ĞÅºÅÖĞ¶Ï
+                if (errno == EINTR) // è¢«ä¿¡å·ä¸­æ–­
                     continue;
 
                 ERR_EXIT("server write function failed! ");
@@ -105,33 +113,33 @@ public:
         return count;
     }
 
-    // ¿ªÆô·şÎñ¶Ë
+    // å¼€å¯æœåŠ¡ç«¯
     void start()
     {
-        // ±ÜÃâ½©Ê¬½ø³Ì
+        // é¿å…åƒµå°¸è¿›ç¨‹
         signal(SIGCHLD, SIG_IGN);
 
-        // ÓÃ AF_INET ºÍ PF_INET ¶¼¿ÉÒÔ£¬Ç°Á½¸ö²ÎÊıÒÑ¾­¿ÉÈ·¶¨ÊÇ TCP£¬ËùÒÔµÚÈı¸ö²ÎÊı¿ÉÒÔÖÃ 0
+        // ç”¨ AF_INET å’Œ PF_INET éƒ½å¯ä»¥ï¼Œå‰ä¸¤ä¸ªå‚æ•°å·²ç»å¯ç¡®å®šæ˜¯ TCPï¼Œæ‰€ä»¥ç¬¬ä¸‰ä¸ªå‚æ•°å¯ä»¥ç½® 0
         if ((m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
             ERR_EXIT("server socket function failed! ");
 
-        // °ó¶¨Ö®Ç°¿ªÆôµØÖ·ÖØ¸´ÀûÓÃ
+        // ç»‘å®šä¹‹å‰å¼€å¯åœ°å€é‡å¤åˆ©ç”¨
         int on = 1;
         if (setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
             ERR_EXIT("server setsockopt function failed! ");
 
-        // ½ÓÏÂÀ´½øĞĞ°ó¶¨, ½«¸ÃÌ×½Ó×ÖÓëÒ»¸ö±¾µØµØÖ·½øĞĞ°ó¶¨, ĞèÒª½« IPv4 µØÖ·½á¹¹Ç¿ÖÆ×ª»»ÎªÍ¨ÓÃµØÖ·½á¹¹
+        // æ¥ä¸‹æ¥è¿›è¡Œç»‘å®š, å°†è¯¥å¥—æ¥å­—ä¸ä¸€ä¸ªæœ¬åœ°åœ°å€è¿›è¡Œç»‘å®š, éœ€è¦å°† IPv4 åœ°å€ç»“æ„å¼ºåˆ¶è½¬æ¢ä¸ºé€šç”¨åœ°å€ç»“æ„
         if (bind(m_fd, (struct sockaddr*)&m_server_addr, sizeof(m_server_addr)) < 0)
             ERR_EXIT("server bind function failed! ");
 
-        // ½ÓÏÂÀ´ÊÇ¼àÌı£¬½« socket ´Ó close ×´Ì¬×ªÎª¼àÌı×´Ì¬²ÅÄÜ¹»½ÓÊÜÁ¬½Ó
+        // æ¥ä¸‹æ¥æ˜¯ç›‘å¬ï¼Œå°† socket ä» close çŠ¶æ€è½¬ä¸ºç›‘å¬çŠ¶æ€æ‰èƒ½å¤Ÿæ¥å—è¿æ¥
         if(listen(m_fd, SOMAXCONN) < 0)
             ERR_EXIT("server listen function failed! ");
 
-        // ¶¨ÒåÒ»¸ö¿Í»§¶ËµØÖ·
+        // å®šä¹‰ä¸€ä¸ªå®¢æˆ·ç«¯åœ°å€
         struct sockaddr_in client_addr;
         socklen_t addr_len;
-        int fd; // Ò»¸öĞÂµÄÌ×½Ó×Ö£¬³ÆÎªÒÑÁ¬½ÓÌ×½Ó×Ö(Ö÷¶¯Ì×½Ó×Ö)
+        int fd; // ä¸€ä¸ªæ–°çš„å¥—æ¥å­—ï¼Œç§°ä¸ºå·²è¿æ¥å¥—æ¥å­—(ä¸»åŠ¨å¥—æ¥å­—)
         int n_ready = 0;
         int max_fd = m_fd;
 
@@ -155,7 +163,7 @@ public:
             if (n_ready == 0)
                 continue;
 
-            // ÓĞĞÂµÄ¿Í»§¶ËÁ¬½ÓÁË
+            // æœ‰æ–°çš„å®¢æˆ·ç«¯è¿æ¥äº†
             if (FD_ISSET(m_fd, &read_set))
             {
                 if (m_client_num >= MAX_CLIENT_NUM)
@@ -176,7 +184,7 @@ public:
 
                 m_client_num++;
 
-                // Êä³öÁ¬½ÓµÄ¿Í»§¶ËµÄĞÅÏ¢
+                // è¾“å‡ºè¿æ¥çš„å®¢æˆ·ç«¯çš„ä¿¡æ¯
                 printf("client %d connected, its data is ip = %s, port = %d\n", m_client_num, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
                 FD_SET(fd, &all_set);
@@ -185,19 +193,19 @@ public:
                     continue;
             }
 
-            // ¶ÔÒÑÁ¬½ÓÌ×½Ó¿Ú²úÉúµÄÊÂ¼ş½øĞĞ´¦Àí
+            // å¯¹å·²è¿æ¥å¥—æ¥å£äº§ç”Ÿçš„äº‹ä»¶è¿›è¡Œå¤„ç†
             for (int i = 0; i < m_client_num; i++)
             {
-                if (m_client_fd[i] == -1) // ÓĞµÄ¿Í»§¶Ë¿ÉÄÜÒÑ¾­¶Ï¿ªÁË
+                if (m_client_fd[i] == -1) // æœ‰çš„å®¢æˆ·ç«¯å¯èƒ½å·²ç»æ–­å¼€äº†
                     continue;
 
                 if (FD_ISSET(m_client_fd[i], &read_set))
                 {
-                    // ÒâÎ¶×Å²úÉúÁË¿É¶ÁÊÂ¼ş
+                    // æ„å‘³ç€äº§ç”Ÿäº†å¯è¯»äº‹ä»¶
                     Packet recv_packet;
                     memset(&recv_packet, 0, sizeof(recv_packet));
 
-                    // ÏÈ¶ÁÈ¡ĞèÒª½ÓÊÜµÄ×Ö½Ú×ÜÊı£¬È·¶¨±ß½ç
+                    // å…ˆè¯»å–éœ€è¦æ¥å—çš„å­—èŠ‚æ€»æ•°ï¼Œç¡®å®šè¾¹ç•Œ
                     int ret = read_n(m_client_fd[i], &recv_packet.len, sizeof(Packet::len));
 
                     if (ret == -1)
@@ -208,7 +216,7 @@ public:
                     else if (ret < (int)sizeof(Packet::len))
                         continue;
 
-                    // È»ºó°ÑÕâĞ©×Ö½ÚÈ«²¿¶Á½øÀ´
+                    // ç„¶åæŠŠè¿™äº›å­—èŠ‚å…¨éƒ¨è¯»è¿›æ¥
                     int n = ntohl(recv_packet.len);
                     ret = read_n(m_client_fd[i], recv_packet.buffer, n);
 
@@ -231,12 +239,12 @@ public:
 
 private:
 
-    enum { MAX_CLIENT_NUM = 5 }; // ×î¶à¿ÉÁ¬½ÓµÄ¿Í»§¶ËÊıÄ¿
+    enum { MAX_CLIENT_NUM = 5 }; // æœ€å¤šå¯è¿æ¥çš„å®¢æˆ·ç«¯æ•°ç›®
 
     sockaddr_in m_server_addr;
     int         m_fd;
     int         m_client_fd[MAX_CLIENT_NUM];
-    int         m_client_num; // ÒÑÁ¬½ÓµÄ¿Í»§¶ËÊıÄ¿
+    int         m_client_num; // å·²è¿æ¥çš„å®¢æˆ·ç«¯æ•°ç›®
 };
 
 int main()
