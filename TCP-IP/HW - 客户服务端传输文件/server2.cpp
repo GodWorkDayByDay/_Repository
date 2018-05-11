@@ -127,60 +127,104 @@ public:
         if(listen(m_fd, SOMAXCONN) < 0)
             ERR_EXIT("server listen function failed! ");
 
+
         // 定义一个客户端地址
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
 
-        m_client_fd = accept(m_fd, (sockaddr*)&client_addr, &addr_len);
-
-        if (m_client_fd == -1)
-            ERR_EXIT("server accept function failed! ");
-
-        // 输出连接的客户端的信息
-        printf("ip = %s, port = %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-        Packet recv_packet;
-        memset(&recv_packet, 0, sizeof(recv_packet));
-
+        pid_t pid;
         while (1)
         {
-            // 在服务端打开或创建这个文件，等待数据的到来
-            if ((m_file = fopen("recv.txt", "a+")) == NULL)
-                ERR_EXIT("file open failed! ");
+            m_client_fd = accept(m_fd, (sockaddr*)&client_addr, &addr_len);
 
-            // 接收文件数据
-            while (1)
+            if (m_client_fd == -1)
+                ERR_EXIT("server accept function failed! ");
+
+            // 输出连接的客户端的信息
+            printf("ip = %s, port = %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+            pid = fork();
+            if (pid < 0)
+                ERR_EXIT("server fork function failed\n ");
+
+            // 子进程处理文件传输
+            if (pid == 0)
             {
-                memset(&recv_packet, 0, sizeof(recv_packet));
-
-                int ret = read_n(m_client_fd, &recv_packet.len, sizeof(Packet::len));
-
-                if (ret == -1)
-                    ERR_EXIT("server read_n function failed! ");
-                else if (ret < (int)sizeof(Packet::len))
-                    return;
-
-                int n = ntohl(recv_packet.len);
-                ret = read_n(m_client_fd, recv_packet.buffer, n);
-
-                if (ret == -1)
-                    ERR_EXIT("server read_n function failed! ");
-                else if (ret < n)
-                    return;
-
-                if (strcmp(recv_packet.buffer, "G") == 0)
+                Packet recv_packet;
+                while (1)
                 {
-                    fputs("file finished!\n");
-                    break;
+                    // 得到文件名
+                    memset(&recv_packet, 0, sizeof(recv_packet));
+                    int ret = read_n(m_client_fd, &recv_packet.len, sizeof(Packet::len));
+                    if (ret == -1)
+                        ERR_EXIT("server read_n function failed! ");
+                    else if (ret < (int)sizeof(Packet::len))
+                        return;
+                    int n = ntohl(recv_packet.len);
+                    ret = read_n(m_client_fd, recv_packet.buffer, n);
+                    if (ret == -1)
+                        ERR_EXIT("server read_n function failed! ");
+                    else if (ret < n)
+                        return;
+
+                    // 在服务端打开或创建这个文件
+                    if ((m_file = fopen(recv_packet.buffer, "a+")) == NULL)
+                        ERR_EXIT("file open failed! ");
+
+                    // 得到文件大小
+                    memset(&recv_packet, 0, sizeof(recv_packet));
+                    ret = read_n(m_client_fd, &recv_packet.len, sizeof(Packet::len));
+                    if (ret == -1)
+                        ERR_EXIT("server read_n function failed! ");
+                    else if (ret < (int)sizeof(Packet::len))
+                        return;
+                    n = ntohl(recv_packet.len);
+                    ret = read_n(m_client_fd, recv_packet.buffer, n);
+                    if (ret == -1)
+                        ERR_EXIT("server read_n function failed! ");
+                    else if (ret < n)
+                        return;
+                    long int file_size = 0;
+                    memcpy(&file_size, recv_packet.buffer, sizeof(long int));
+
+                    printf("file size is %ld\n", file_size);
+
+                    // 接收文件数据
+                    while (file_size > 0)
+                    {
+                        memset(&recv_packet, 0, sizeof(recv_packet));
+
+                        ret = read_n(m_client_fd, &recv_packet.len, sizeof(Packet::len));
+
+                        if (ret == -1)
+                            ERR_EXIT("server read_n function failed! ");
+                        else if (ret < (int)sizeof(Packet::len))
+                            return;
+
+                        n = ntohl(recv_packet.len);
+                        ret = read_n(m_client_fd, recv_packet.buffer, n);
+
+                        file_size -= ret;
+
+                        if (ret == -1)
+                            ERR_EXIT("server read_n function failed! ");
+                        else if (ret < n)
+                            return;
+
+                        ret = fwrite(recv_packet.buffer, sizeof(char), n, m_file);
+
+                        if (ret < n)
+                            ERR_EXIT("server file fwrite function failed! ");
+                    }
+
+                    printf("file saved success!\n");
+                    fclose(m_file);
                 }
-
-                ret = fwrite(recv_packet.buffer, sizeof(char), n, m_file);
-
-                if (ret < n)
-                    ERR_EXIT("file write failed! ");
             }
-
-            fclose(m_file);
+            else // 父进程继续在 accept 阻塞，等待新客户连接
+            {
+                close(m_client_fd);
+            }
         }
     }
 

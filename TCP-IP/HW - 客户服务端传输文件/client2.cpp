@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -113,33 +114,63 @@ public:
         if (connect(m_fd, (sockaddr*)&m_client_addr, sizeof(m_client_addr)) < 0)
             ERR_EXIT("client connect function failed! ");
 
-        Packet send_packet;
-        memset(&send_packet, 0, sizeof(send_packet));
-        scanf("%s", send_packet.buffer);
-
-        // 客户端打开文件，准备发送文件数据
-        if ((m_file = fopen("/home/hapoa/projects/cplusplus/test.txt", "r")) == NULL)
-            ERR_EXIT("file open failed! ");
-
-        // 然后发送文件数据
-        int ret;
-        memset(&send_packet, 0, sizeof(send_packet));
-        while ((ret = fread(send_packet.buffer, sizeof(char), sizeof(send_packet.buffer), m_file)) > 0)
+        while (1)
         {
-            fputs(send_packet.buffer, stdout);
-            int n = strlen(send_packet.buffer);
-            send_packet.len = htonl(n);
-            write_n(m_fd, &send_packet, sizeof(Packet::len) + n);
+            Packet send_packet;
             memset(&send_packet, 0, sizeof(send_packet));
+            scanf("%s", send_packet.buffer);
+
+            // 客户端打开文件，准备发送文件数据
+            if ((m_file = fopen(send_packet.buffer, "r")) == NULL) // /home/hapoa/projects/cplusplus/test.pdf
+                ERR_EXIT("file open failed! ");
+
+            // 获取文件信息（其实主要是获取文件大小）
+            struct stat file_data;
+            if (stat(send_packet.buffer, &file_data) == -1)
+                ERR_EXIT("client stat function failed! ");
+
+            // 发送文件名，注意，只是文件名，如果给定的包含路径，需要处理
+            int len = strlen(send_packet.buffer);
+            int i, j;
+            for (i = len - 1; i >= 0; i--)
+            {
+                if (send_packet.buffer[i] == '/')
+                {
+                    len = len - i - 1; // 得到文件名长度
+                    break;
+                }
+            }
+            if (i >= 0) // 如果有路径，则去除路径，只保留文件名
+            {
+                for (j = 0, i++; j < len; j++, i++)
+                    send_packet.buffer[j] = send_packet.buffer[i];
+                send_packet.buffer[j] = '\0'; // 已处理得到文件名（不包含路径）
+            }
+            send_packet.len = htonl(len);
+            write_n(m_fd, &send_packet, sizeof(Packet::len) + len);
+
+            // 得到文件大小,并把这个大小数值发送给服务端
+            long int file_size = file_data.st_size;
+            printf("file size = %ld\n", file_size);
+            memset(&send_packet, 0, sizeof(send_packet));
+            send_packet.len = htonl(sizeof(long int));
+            memcpy(send_packet.buffer, &file_size, sizeof(long int));
+            write_n(m_fd, &send_packet, sizeof(Packet::len) + sizeof(long int));
+
+            // 然后发送文件数据
+            int ret;
+            memset(&send_packet, 0, sizeof(send_packet));
+            while ((ret = fread(send_packet.buffer, sizeof(char), sizeof(send_packet.buffer), m_file)) > 0)
+            {
+                file_size -= ret;
+                send_packet.len = htonl(ret);
+                write_n(m_fd, &send_packet, sizeof(Packet::len) + ret);
+                memset(&send_packet, 0, sizeof(send_packet));
+            }
+
+            printf("file send finished!\n");
+            fclose(m_file);
         }
-
-        // 文件传送结束，最后发个结束标志告知服务端
-        memset(&send_packet, 0, sizeof(send_packet));
-        send_packet.len = htonl(1);
-        strcpy(send_packet.buffer, "G"); // 有待调整
-        write_n(m_fd, &send_packet, sizeof(Packet::len) + 1);
-
-        fclose(m_file);
     }
 
 private:
